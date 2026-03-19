@@ -1,0 +1,75 @@
+# Vietnamese Text Style Classification Configuration
+
+# Data settings
+data:
+  # Path to a single JSONL file or a folder containing JSONL files
+  input_path: "data/raw"
+  output_path: "data/processed"
+  text_field: "text"
+  label_field: "label"
+  test_size: 0.15
+  val_size: 0.1
+  seed: 42
+
+# Label mapping
+labels:
+  - "bao_chi"          # Báo chí - Công luận
+  - "hanh_chinh"       # Hành chính - Công vụ
+  - "khoa_hoc"         # Khoa học
+  - "chinh_luan"       # Chính luận
+  - "sinh_hoat"        # Sinh hoạt hàng ngày
+
+label_display:
+  bao_chi: "Báo chí - Công luận"
+  hanh_chinh: "Hành chính - Công vụ"
+  khoa_hoc: "Khoa học"
+  chinh_luan: "Chính luận"
+  sinh_hoat: "Sinh hoạt hàng ngày"
+
+# Preprocessing settings
+preprocessing:
+  # Vietnamese text cleaning
+  lowercase: false
+  remove_urls: true
+  remove_emails: true
+  remove_html_tags: true
+  remove_extra_whitespace: true
+  normalize_unicode: true
+  word_segment: true  # Use underthesea for Vietnamese word segmentation
+
+# Deduplication settings (MinHash LSH)
+dedup:
+  enabled: true
+  num_perm: 128          # Number of permutations for MinHash
+  threshold: 0.8         # Jaccard similarity threshold
+  ngram_size: 5          # N-gram size for shingling
+
+# Chunking settings for long texts
+chunking:
+  enabled: true
+  max_length: 512        # Max tokens per chunk (model max_length)
+  stride: 128            # Overlap between chunks in tokens
+  aggregation: "mean"    # How to aggregate chunk predictions: mean, max, majority_vote
+
+# Model settings
+model:
+  name: "vinai/phobert-base-v2"  # Vietnamese BERT model
+  max_length: 256
+  num_labels: 5
+
+# Training settings
+training:
+  output_dir: "outputs"
+  num_epochs: 5
+  batch_size: 16
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  gradient_accumulation_steps: 1
+  fp16: true
+  logging_steps: 50
+  eval_steps: 200
+  save_steps: 500
+  save_total_limit: 3
+  early_stopping_patience: 3
+  metric_for_best_model: "f1_macro"
