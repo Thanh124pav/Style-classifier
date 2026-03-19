@@ -58,11 +58,18 @@ def load_jsonl(path: str, text_field: str, style: str) -> pd.DataFrame:
     return df
 
 
+STYLE_NAME_MAP = {
+    "chính luận": "chinh_luan",
+    "khoa học": "khoa_hoc",
+}
+
+
 def load_csv(path: str, text_field: str, style_field: str) -> pd.DataFrame:
     """Load a CSV file that already contains text and style columns."""
     df = pd.read_csv(path, usecols=[text_field, style_field])
     df = df.rename(columns={text_field: "text", style_field: "style"})
     df = df.dropna(subset=["text", "style"])
+    df["style"] = df["style"].str.strip().replace(STYLE_NAME_MAP)
     logger.info("Loaded %d rows from %s (styles: %s)", len(df), path, df["style"].unique().tolist())
     return df
 
