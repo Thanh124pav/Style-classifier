@@ -1,0 +1,68 @@
+# Vietnamese Text Style Classification - Pipeline Config
+# Used by run_pipeline.sh (reads merged data with "style" field)
+
+# Data settings
+data:
+  input_path: "data/raw"
+  output_path: "data/processed"
+  text_field: "text"
+  label_field: "style"       # merge_datasets.py outputs "style", not "label"
+  test_size: 0.15
+  val_size: 0.1
+  seed: 42
+
+# Label mapping (must match labels in merged data)
+labels:
+  - "baochi"
+  - "hanhchinh"
+  - "sinhhoat"
+  # Labels from CSV are passed through as-is
+
+label_display:
+  baochi: "Báo chí"
+  hanhchinh: "Hành chính"
+  sinhhoat: "Sinh hoạt"
+
+# Preprocessing settings
+preprocessing:
+  lowercase: false
+  remove_urls: true
+  remove_emails: true
+  remove_html_tags: true
+  remove_extra_whitespace: true
+  normalize_unicode: true
+  word_segment: true
+
+# Dedup disabled here — already done by dedup_datatrove.py in pipeline
+dedup:
+  enabled: false
+
+# Chunking settings for long texts
+chunking:
+  enabled: true
+  max_length: 512
+  stride: 128
+  aggregation: "mean"
+
+# Model settings
+model:
+  name: "vinai/phobert-base-v2"
+  max_length: 256
+  num_labels: 5
+
+# Training settings
+training:
+  output_dir: "outputs"
+  num_epochs: 5
+  batch_size: 16
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  gradient_accumulation_steps: 1
+  fp16: true
+  logging_steps: 50
+  eval_steps: 200
+  save_steps: 500
+  save_total_limit: 3
+  early_stopping_patience: 3
+  metric_for_best_model: "f1_macro"
