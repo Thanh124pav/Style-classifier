@@ -32,6 +32,10 @@ def deduplicate(
     hashes_per_bucket: int = 8,
     n_grams: int = 5,
     num_workers: int = 1,
+    # Legacy params from old datasketch-based config (mapped automatically)
+    num_perm: int | None = None,
+    threshold: float | None = None,
+    ngram_size: int | None = None,
 ) -> pd.DataFrame:
     """Remove near-duplicate texts using datatrove MinHash pipeline.
 
@@ -41,10 +45,22 @@ def deduplicate(
         hashes_per_bucket: Number of hashes per bucket.
         n_grams: Size of character n-grams for shingling.
         num_workers: Number of parallel workers.
+        num_perm: (Legacy) mapped to num_buckets & hashes_per_bucket.
+        threshold: (Legacy) ignored — datatrove uses bucket-based LSH.
+        ngram_size: (Legacy) mapped to n_grams.
 
     Returns:
         Deduplicated DataFrame.
     """
+    # Map legacy params
+    if ngram_size is not None:
+        n_grams = ngram_size
+    if num_perm is not None:
+        # Approximate: split total permutations across buckets
+        # e.g. num_perm=128 -> 14 buckets x ~9 hashes (we use 14x8=112)
+        hashes_per_bucket = max(1, num_perm // num_buckets)
+    if threshold is not None:
+        logger.info("Note: 'threshold' is ignored by datatrove MinHash (uses LSH bucket matching).")
     original_size = len(df)
     logger.info("Starting deduplication on %d records...", original_size)
 

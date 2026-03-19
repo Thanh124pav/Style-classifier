@@ -37,12 +37,13 @@ preprocessing:
   normalize_unicode: true
   word_segment: true  # Use underthesea for Vietnamese word segmentation
 
-# Deduplication settings (MinHash LSH)
+# Deduplication settings (datatrove MinHash LSH)
 dedup:
   enabled: true
-  num_perm: 128          # Number of permutations for MinHash
-  threshold: 0.8         # Jaccard similarity threshold
-  ngram_size: 5          # N-gram size for shingling
+  num_buckets: 14        # Number of LSH buckets
+  hashes_per_bucket: 8   # Hashes per bucket (total sigs = buckets * hashes)
+  n_grams: 5             # N-gram size for shingling
+  num_workers: 4         # Parallel workers for datatrove pipeline
 
 # Chunking settings for long texts
 chunking:

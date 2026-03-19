@@ -55,9 +55,14 @@ def main(config_path: str):
         logger.info("=== Deduplication ===")
         df = deduplicate(
             df,
-            num_perm=dedup_cfg.get("num_perm", 128),
-            threshold=dedup_cfg.get("threshold", 0.8),
-            ngram_size=dedup_cfg.get("ngram_size", 5),
+            num_buckets=dedup_cfg.get("num_buckets", 14),
+            hashes_per_bucket=dedup_cfg.get("hashes_per_bucket", 8),
+            n_grams=dedup_cfg.get("n_grams", 5),
+            num_workers=dedup_cfg.get("num_workers", 4),
+            # Legacy params (backward compat with old configs)
+            num_perm=dedup_cfg.get("num_perm"),
+            threshold=dedup_cfg.get("threshold"),
+            ngram_size=dedup_cfg.get("ngram_size"),
         )
 
     # 4. Split data
