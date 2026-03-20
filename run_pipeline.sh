@@ -88,16 +88,15 @@ log "Stage 3/4 — Preparing data for training..."
 mkdir -p "$RAW_DIR"
 rm -f "$RAW_DIR"/*.jsonl
 
-# Try dedup output first (even when --skip-dedup, prior run may have produced it)
-FOUND_GZ=$(find "$DEDUP_DIR" -name "*.jsonl.gz" 2>/dev/null | head -1)
-FOUND_JSONL=$(find "$DEDUP_DIR" -name "*.jsonl" ! -name "*.gz" 2>/dev/null | head -1)
+# Check if dedup output exists (even when --skip-dedup, prior run may have produced it)
+FOUND_DEDUP=$(find "$DEDUP_DIR" -name "*.jsonl.gz" -o -name "*.jsonl" 2>/dev/null | head -1)
 
-if [ -n "$FOUND_GZ" ]; then
-    zcat "$DEDUP_DIR"/*.jsonl.gz > "$RAW_DIR/data.jsonl"
-    log "Decompressed deduped .jsonl.gz → $RAW_DIR/data.jsonl"
-elif [ -n "$FOUND_JSONL" ]; then
-    cat "$DEDUP_DIR"/*.jsonl > "$RAW_DIR/data.jsonl"
-    log "Copied deduped .jsonl → $RAW_DIR/data.jsonl"
+if [ -n "$FOUND_DEDUP" ]; then
+    python scripts/normalize_data.py \
+        --input "$DEDUP_DIR" \
+        --output "$RAW_DIR/data.jsonl" \
+        --label-field style
+    log "Normalized dedup output → $RAW_DIR/data.jsonl"
 else
     # No dedup output available — use merged file
     cp "$MERGED_FILE" "$RAW_DIR/data.jsonl"

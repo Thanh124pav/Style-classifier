@@ -54,7 +54,7 @@ chunking:
 
 # Model settings
 model:
-  name: "vinai/phobert-base-v2"  # Vietnamese BERT model
+  name: "bert-base-multilingual-cased"  # Multilingual BERT
   max_length: 256
   num_labels: 5
 

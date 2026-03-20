@@ -49,7 +49,7 @@ chunking:
 
 # Model settings
 model:
-  name: "vinai/phobert-base-v2"
+  name: "bert-base-multilingual-cased"
   max_length: 256
   num_labels: 5
 
