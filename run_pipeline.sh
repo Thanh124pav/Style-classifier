@@ -88,25 +88,20 @@ log "Stage 3/4 — Preparing data for training..."
 mkdir -p "$RAW_DIR"
 rm -f "$RAW_DIR"/*.jsonl
 
-if [ "$SKIP_DEDUP" = false ]; then
-    # datatrove writes .jsonl.gz — decompress and merge shards
-    FOUND_GZ=$(find "$DEDUP_DIR" -name "*.jsonl.gz" 2>/dev/null | head -1)
-    FOUND_JSONL=$(find "$DEDUP_DIR" -name "*.jsonl" ! -name "*.gz" 2>/dev/null | head -1)
+# Try dedup output first (even when --skip-dedup, prior run may have produced it)
+FOUND_GZ=$(find "$DEDUP_DIR" -name "*.jsonl.gz" 2>/dev/null | head -1)
+FOUND_JSONL=$(find "$DEDUP_DIR" -name "*.jsonl" ! -name "*.gz" 2>/dev/null | head -1)
 
-    if [ -n "$FOUND_GZ" ]; then
-        zcat "$DEDUP_DIR"/*.jsonl.gz > "$RAW_DIR/data.jsonl"
-        log "Decompressed .jsonl.gz → $RAW_DIR/data.jsonl"
-    elif [ -n "$FOUND_JSONL" ]; then
-        cat "$DEDUP_DIR"/*.jsonl > "$RAW_DIR/data.jsonl"
-        log "Copied .jsonl → $RAW_DIR/data.jsonl"
-    else
-        log "ERROR: No dedup output found in $DEDUP_DIR"
-        exit 1
-    fi
+if [ -n "$FOUND_GZ" ]; then
+    zcat "$DEDUP_DIR"/*.jsonl.gz > "$RAW_DIR/data.jsonl"
+    log "Decompressed deduped .jsonl.gz → $RAW_DIR/data.jsonl"
+elif [ -n "$FOUND_JSONL" ]; then
+    cat "$DEDUP_DIR"/*.jsonl > "$RAW_DIR/data.jsonl"
+    log "Copied deduped .jsonl → $RAW_DIR/data.jsonl"
 else
-    # Fallback: use merged file directly
+    # No dedup output available — use merged file
     cp "$MERGED_FILE" "$RAW_DIR/data.jsonl"
-    log "Copied merged data → $RAW_DIR/data.jsonl"
+    log "No dedup output found, using merged data → $RAW_DIR/data.jsonl"
 fi
 
 FINAL_COUNT=$(wc -l < "$RAW_DIR/data.jsonl")
