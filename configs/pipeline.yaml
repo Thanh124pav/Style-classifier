@@ -13,15 +13,18 @@ data:
 
 # Label mapping (must match labels in merged data)
 labels:
-  - "baochi"
-  - "hanhchinh"
-  - "sinhhoat"
-  # Labels from CSV are passed through as-is
+  - "bao_chi"
+  - "hanh_chinh"
+  - "sinh_hoat"
+  - "khoa_hoc"
+  - "chinh_luan"
 
 label_display:
-  baochi: "Báo chí"
-  hanhchinh: "Hành chính"
-  sinhhoat: "Sinh hoạt"
+  bao_chi: "Báo chí"
+  hanh_chinh: "Hành chính"
+  sinh_hoat: "Sinh hoạt"
+  khoa_hoc: "Khoa học"
+  chinh_luan: "Chính luận"
 
 # Preprocessing settings
 preprocessing:

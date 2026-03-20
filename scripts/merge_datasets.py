@@ -15,17 +15,17 @@ DATASETS = [
     {
         "path": "/storage-nlp/nlp/dungdx4/tmp/Vietnamese/thanhpv43/process_data_thanh/original_data/tla.jsonl",
         "text_field": "content",
-        "style": "hanhchinh",
+        "style": "hanh_chinh",
     },
     {
         "path": "/raid/models/models_rsync/datasets/fb_comment_10m.jsonl",
         "text_field": "content",
-        "style": "sinhhoat",
+        "style": "sinh_hoat",
     },
     {
         "path": "/storage-nlp/nlp/dungdx4/tmp/Vietnamese/thanhpv43/process_data_thanh/original_data/databaochi.jsonl",
         "text_field": "content",
-        "style": "baochi",
+        "style": "bao_chi",
     },
     {
         "path": "/raid/models/models_rsync/hapv14/functional_style_datasets/functionalstyle-labels_260317.csv",
