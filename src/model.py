@@ -28,12 +28,29 @@ def load_model_and_tokenizer(
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
+    # Ensure tokenizer has a pad token (some models like GPT-2 lack one)
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+        else:
+            tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+
+    # Ensure tokenizer has an EOS token for sequence classification
+    if tokenizer.eos_token is None:
+        if tokenizer.sep_token is not None:
+            tokenizer.eos_token = tokenizer.sep_token
+        else:
+            tokenizer.add_special_tokens({"eos_token": "</s>"})
+
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         num_labels=num_labels,
         label2id=label2id,
         id2label=id2label,
     )
+
+    # Resize embeddings if new special tokens were added
+    model.resize_token_embeddings(len(tokenizer))
 
     logger.info(f"Model loaded. Parameters: {sum(p.numel() for p in model.parameters()):,}")
     return model, tokenizer
