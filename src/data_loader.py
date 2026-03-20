@@ -60,6 +60,15 @@ def load_data(
 
     df = pd.DataFrame(all_records)
 
+    # datatrove nests fields inside "metadata" after dedup — extract them
+    if "metadata" in df.columns:
+        meta_df = pd.json_normalize(df["metadata"])
+        for col in meta_df.columns:
+            if col not in df.columns:
+                df[col] = meta_df[col]
+        df = df.drop(columns=["metadata"])
+        logger.info(f"Extracted metadata fields: {list(meta_df.columns)}")
+
     # Validate required fields
     if text_field not in df.columns:
         raise ValueError(f"Text field '{text_field}' not found. Columns: {list(df.columns)}")
