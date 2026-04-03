@@ -21,7 +21,6 @@ from transformers import (
 
 from src.data_loader import load_data, split_data
 from src.dataset import StyleDataset
-from src.preprocessing import preprocess_dataframe
 
 logging.basicConfig(
     level=logging.INFO,
@@ -105,11 +104,8 @@ def main(config_path: str):
         logger.warning("Dropping unknown labels: %s", unknown)
         df = df[df["label"].isin(labels)].reset_index(drop=True)
 
-    # ── 2. Preprocess ─────────────────────────────────────────────────
-    logger.info("=== Preprocessing ===")
-    df = preprocess_dataframe(df, config)
+    # ── 2. Split (data is already cleaned by normalize_data.py) ─────
 
-    # ── 3. Split ──────────────────────────────────────────────────────
     logger.info("=== Splitting data ===")
     train_df, val_df, test_df = split_data(
         df,

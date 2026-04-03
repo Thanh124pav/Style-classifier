@@ -27,6 +27,8 @@ DEDUP_HASHES=8
 DEDUP_NGRAMS=5
 
 BALANCE="downsample"      # downsample | upsample | none
+WORD_SEGMENT=false
+CLEAN_WORKERS=4
 
 SKIP_MERGE=false
 SKIP_DEDUP=false
@@ -42,6 +44,8 @@ while [[ $# -gt 0 ]]; do
         --min-length)   MIN_TEXT_LENGTH="$2"; shift 2 ;;
         --workers)      DEDUP_WORKERS="$2"; shift 2 ;;
         --balance)      BALANCE="$2"; shift 2 ;;
+        --word-segment) WORD_SEGMENT=true; shift ;;
+        --clean-workers) CLEAN_WORKERS="$2"; shift 2 ;;
         -h|--help)
             echo "Usage: $0 [--skip-merge] [--skip-dedup] [--skip-train] [--config path] [--min-length N] [--workers N]"
             exit 0 ;;
@@ -91,29 +95,26 @@ log "Stage 3/4 — Preparing data for training..."
 mkdir -p "$RAW_DIR"
 rm -f "$RAW_DIR"/*.jsonl
 
-# Check if dedup output exists (even when --skip-dedup, prior run may have produced it)
+# Build normalize_data.py flags
 FOUND_DEDUP=$(find "$DEDUP_DIR" -name "*.jsonl.gz" -o -name "*.jsonl" 2>/dev/null | head -1)
-
-BALANCE_FLAG=""
-if [ "$BALANCE" != "none" ]; then
-    BALANCE_FLAG="--balance $BALANCE"
-fi
-
+NORMALIZE_INPUT="$MERGED_FILE"
 if [ -n "$FOUND_DEDUP" ]; then
-    python scripts/normalize_data.py \
-        --input "$DEDUP_DIR" \
-        --output "$RAW_DIR/data.jsonl" \
-        --label-field style \
-        $BALANCE_FLAG
-    log "Normalized dedup output → $RAW_DIR/data.jsonl (balance=$BALANCE)"
-else
-    python scripts/normalize_data.py \
-        --input "$MERGED_FILE" \
-        --output "$RAW_DIR/data.jsonl" \
-        --label-field style \
-        $BALANCE_FLAG
-    log "Normalized merged data → $RAW_DIR/data.jsonl (balance=$BALANCE)"
+    NORMALIZE_INPUT="$DEDUP_DIR"
 fi
+
+NORMALIZE_FLAGS="--label-field style --min-length $MIN_TEXT_LENGTH --workers $CLEAN_WORKERS"
+if [ "$BALANCE" != "none" ]; then
+    NORMALIZE_FLAGS="$NORMALIZE_FLAGS --balance $BALANCE"
+fi
+if [ "$WORD_SEGMENT" = true ]; then
+    NORMALIZE_FLAGS="$NORMALIZE_FLAGS --word-segment"
+fi
+
+log "Stage 3/4 — Normalizing + cleaning (input=$NORMALIZE_INPUT, balance=$BALANCE, word_segment=$WORD_SEGMENT)..."
+python scripts/normalize_data.py \
+    --input "$NORMALIZE_INPUT" \
+    --output "$RAW_DIR/data.jsonl" \
+    $NORMALIZE_FLAGS
 
 FINAL_COUNT=$(wc -l < "$RAW_DIR/data.jsonl")
 log "Training data ready: $FINAL_COUNT samples"

@@ -26,19 +26,8 @@ label_display:
   khoa_hoc: "Khoa học"
   chinh_luan: "Chính luận"
 
-# Preprocessing settings
-preprocessing:
-  lowercase: false
-  remove_urls: true
-  remove_emails: true
-  remove_html_tags: true
-  remove_extra_whitespace: true
-  normalize_unicode: true
-  word_segment: true
-
-# Dedup disabled here — already done by dedup_datatrove.py in pipeline
-dedup:
-  enabled: false
+# Preprocessing & dedup are handled by normalize_data.py (before training)
+# See: scripts/normalize_data.py and run_pipeline.sh stage 3
 
 # Chunking settings for long texts
 chunking:
