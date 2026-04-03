@@ -26,6 +26,8 @@ DEDUP_BUCKETS=14
 DEDUP_HASHES=8
 DEDUP_NGRAMS=5
 
+BALANCE="downsample"      # downsample | upsample | none
+
 SKIP_MERGE=false
 SKIP_DEDUP=false
 SKIP_TRAIN=false
@@ -39,6 +41,7 @@ while [[ $# -gt 0 ]]; do
         --config)       CONFIG="$2"; shift 2 ;;
         --min-length)   MIN_TEXT_LENGTH="$2"; shift 2 ;;
         --workers)      DEDUP_WORKERS="$2"; shift 2 ;;
+        --balance)      BALANCE="$2"; shift 2 ;;
         -h|--help)
             echo "Usage: $0 [--skip-merge] [--skip-dedup] [--skip-train] [--config path] [--min-length N] [--workers N]"
             exit 0 ;;
@@ -91,16 +94,25 @@ rm -f "$RAW_DIR"/*.jsonl
 # Check if dedup output exists (even when --skip-dedup, prior run may have produced it)
 FOUND_DEDUP=$(find "$DEDUP_DIR" -name "*.jsonl.gz" -o -name "*.jsonl" 2>/dev/null | head -1)
 
+BALANCE_FLAG=""
+if [ "$BALANCE" != "none" ]; then
+    BALANCE_FLAG="--balance $BALANCE"
+fi
+
 if [ -n "$FOUND_DEDUP" ]; then
     python scripts/normalize_data.py \
         --input "$DEDUP_DIR" \
         --output "$RAW_DIR/data.jsonl" \
-        --label-field style
-    log "Normalized dedup output → $RAW_DIR/data.jsonl"
+        --label-field style \
+        $BALANCE_FLAG
+    log "Normalized dedup output → $RAW_DIR/data.jsonl (balance=$BALANCE)"
 else
-    # No dedup output available — use merged file
-    cp "$MERGED_FILE" "$RAW_DIR/data.jsonl"
-    log "No dedup output found, using merged data → $RAW_DIR/data.jsonl"
+    python scripts/normalize_data.py \
+        --input "$MERGED_FILE" \
+        --output "$RAW_DIR/data.jsonl" \
+        --label-field style \
+        $BALANCE_FLAG
+    log "Normalized merged data → $RAW_DIR/data.jsonl (balance=$BALANCE)"
 fi
 
 FINAL_COUNT=$(wc -l < "$RAW_DIR/data.jsonl")

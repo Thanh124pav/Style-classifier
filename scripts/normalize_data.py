@@ -3,18 +3,23 @@
 datatrove moves non-text fields into a nested "metadata" dict:
     {"text": "...", "metadata": {"style": "bao_chi", ...}}
 
-This script flattens metadata back to top-level and keeps only
-the fields needed for training (text + label).
+This script:
+  1. Flattens metadata back to top-level
+  2. Optionally balances classes (downsample / upsample)
+  3. Writes clean JSONL ready for training
 
 Usage:
-    python scripts/normalize_data.py --input data/deduped_styles --output data/raw/data.jsonl
-    python scripts/normalize_data.py --input data/deduped_styles --output data/raw/data.jsonl --label-field style
+    python scripts/normalize_data.py -i data/deduped_styles -o data/raw/data.jsonl
+    python scripts/normalize_data.py -i data/deduped_styles -o data/raw/data.jsonl --balance downsample
+    python scripts/normalize_data.py -i data/deduped_styles -o data/raw/data.jsonl --balance upsample
 """
 
 import argparse
 import gzip
 import json
 import logging
+import random
+from collections import Counter, defaultdict
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -71,6 +76,67 @@ def find_input_files(input_path: Path) -> list[Path]:
     return unique
 
 
+def balance_records(
+    records: list[dict],
+    label_field: str,
+    method: str,
+    seed: int = 42,
+) -> list[dict]:
+    """Balance class distribution.
+
+    Args:
+        records: List of normalized record dicts.
+        label_field: Name of the label field.
+        method: 'downsample' (cut to min class), 'upsample' (repeat to max class).
+        seed: Random seed.
+
+    Returns:
+        Balanced list of records.
+    """
+    rng = random.Random(seed)
+
+    # Group by label
+    by_label: dict[str, list[dict]] = defaultdict(list)
+    for r in records:
+        by_label[r[label_field]].append(r)
+
+    counts = {k: len(v) for k, v in by_label.items()}
+    logger.info("--- Class distribution before balancing ---")
+    for label, count in sorted(counts.items()):
+        logger.info("  %s: %d", label, count)
+
+    if method == "downsample":
+        target = min(counts.values())
+        logger.info("Downsampling all classes to %d", target)
+        balanced = []
+        for label, group in by_label.items():
+            balanced.extend(rng.sample(group, min(target, len(group))))
+    elif method == "upsample":
+        target = max(counts.values())
+        logger.info("Upsampling all classes to %d", target)
+        balanced = []
+        for label, group in by_label.items():
+            if len(group) >= target:
+                balanced.extend(rng.sample(group, target))
+            else:
+                # Keep all originals + sample extra with replacement
+                balanced.extend(group)
+                extra = target - len(group)
+                balanced.extend(rng.choices(group, k=extra))
+    else:
+        raise ValueError(f"Unknown balance method: {method}")
+
+    rng.shuffle(balanced)
+
+    result_counts = Counter(r[label_field] for r in balanced)
+    logger.info("--- Class distribution after balancing ---")
+    for label, count in sorted(result_counts.items()):
+        logger.info("  %s: %d", label, count)
+    logger.info("Total: %d", len(balanced))
+
+    return balanced
+
+
 def main():
     parser = argparse.ArgumentParser(description="Normalize datatrove dedup output for training")
     parser.add_argument(
@@ -85,6 +151,11 @@ def main():
         "--label-field", default="style",
         help="Name of the label field to extract (default: style)",
     )
+    parser.add_argument(
+        "--balance", choices=["downsample", "upsample"], default=None,
+        help="Balance strategy: downsample (cut to smallest class) or upsample (repeat to largest class)",
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for balancing")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -98,21 +169,30 @@ def main():
 
     logger.info("Found %d input file(s): %s", len(input_files), [str(f) for f in input_files])
 
-    total = 0
+    # Read and normalize all records
+    records = []
     skipped = 0
+    for fpath in input_files:
+        logger.info("Processing %s ...", fpath)
+        for record in iter_jsonl(fpath):
+            normalized = normalize_record(record, args.label_field)
+            if normalized is None:
+                skipped += 1
+                continue
+            records.append(normalized)
 
+    logger.info("Normalized %d records (skipped %d)", len(records), skipped)
+
+    # Balance if requested
+    if args.balance:
+        records = balance_records(records, args.label_field, args.balance, args.seed)
+
+    # Write output
     with open(output_path, "w", encoding="utf-8") as out:
-        for fpath in input_files:
-            logger.info("Processing %s ...", fpath)
-            for record in iter_jsonl(fpath):
-                normalized = normalize_record(record, args.label_field)
-                if normalized is None:
-                    skipped += 1
-                    continue
-                out.write(json.dumps(normalized, ensure_ascii=False) + "\n")
-                total += 1
+        for r in records:
+            out.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-    logger.info("Done. Wrote %d records to %s (skipped %d)", total, output_path, skipped)
+    logger.info("Done. Wrote %d records to %s", len(records), output_path)
 
 
 if __name__ == "__main__":
