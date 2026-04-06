@@ -102,7 +102,7 @@ class StyleClassifier:
             outputs = self.model(**inputs)
             logits = outputs.logits.squeeze(0)
 
-        probs = torch.softmax(logits, dim=-1)
+        probs = torch.softmax(logits.float(), dim=-1)
         pred_id = probs.argmax().item()
         pred_label = self.id2label.get(pred_id, str(pred_id))
 
