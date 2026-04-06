@@ -11,6 +11,7 @@ API:
     GET  /labels          → list available labels
 """
 
+import asyncio
 import argparse
 import logging
 import time
@@ -29,6 +30,15 @@ app = FastAPI(title="Vietnamese Style Classifier", version="1.0")
 
 # Global classifier instance (loaded at startup)
 classifier: StyleClassifier | None = None
+# Lock to serialize GPU inference (GPU can't truly parallelize)
+# Created lazily on first request
+_inference_lock: asyncio.Lock | None = None
+
+def get_lock() -> asyncio.Lock:
+    global _inference_lock
+    if _inference_lock is None:
+        _inference_lock = asyncio.Lock()
+    return _inference_lock
 
 
 # ── Request/Response models ───────────────────────────────────────────
@@ -56,7 +66,7 @@ class BatchResponse(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/health")
-def health():
+async def health():
     return {
         "status": "ok",
         "model_loaded": classifier is not None,
@@ -65,7 +75,7 @@ def health():
 
 
 @app.get("/labels")
-def labels():
+async def labels():
     if classifier is None:
         raise HTTPException(503, "Model not loaded")
     return {
@@ -75,14 +85,20 @@ def labels():
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(req: PredictRequest):
+async def predict(req: PredictRequest):
     if classifier is None:
         raise HTTPException(503, "Model not loaded")
     if not req.text.strip():
         raise HTTPException(400, "Text cannot be empty")
 
     start = time.perf_counter()
-    result = classifier.predict(req.text, return_probs=req.return_probs)
+    # Run GPU inference in thread pool to not block the event loop,
+    # lock ensures GPU calls don't overlap (GPU can't truly parallelize)
+    loop = asyncio.get_event_loop()
+    async with get_lock():
+        result = await loop.run_in_executor(
+            None, classifier.predict, req.text, req.return_probs
+        )
     latency = (time.perf_counter() - start) * 1000
 
     return PredictResponse(
@@ -95,25 +111,29 @@ def predict(req: PredictRequest):
 
 
 @app.post("/predict_batch", response_model=BatchResponse)
-def predict_batch(req: PredictBatchRequest):
+async def predict_batch(req: PredictBatchRequest):
     if classifier is None:
         raise HTTPException(503, "Model not loaded")
     if not req.texts:
         raise HTTPException(400, "Texts list cannot be empty")
 
     start = time.perf_counter()
+    loop = asyncio.get_event_loop()
     results = []
-    for text in req.texts:
-        t0 = time.perf_counter()
-        result = classifier.predict(text, return_probs=req.return_probs)
-        t1 = time.perf_counter()
-        results.append(PredictResponse(
-            label=result["label"],
-            label_id=result["label_id"],
-            confidence=result["confidence"],
-            probabilities=result.get("probabilities"),
-            latency_ms=round((t1 - t0) * 1000, 2),
-        ))
+    async with get_lock():
+        for text in req.texts:
+            t0 = time.perf_counter()
+            result = await loop.run_in_executor(
+                None, classifier.predict, text, req.return_probs
+            )
+            t1 = time.perf_counter()
+            results.append(PredictResponse(
+                label=result["label"],
+                label_id=result["label_id"],
+                confidence=result["confidence"],
+                probabilities=result.get("probabilities"),
+                latency_ms=round((t1 - t0) * 1000, 2),
+            ))
     total = (time.perf_counter() - start) * 1000
 
     return BatchResponse(results=results, total_latency_ms=round(total, 2))
