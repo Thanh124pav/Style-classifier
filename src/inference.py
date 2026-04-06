@@ -40,7 +40,9 @@ class StyleClassifier:
         self.device = torch.device(device)
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_path, torch_dtype=torch.float32,
+        )
         self.model.to(self.device)
         self.model.eval()
 

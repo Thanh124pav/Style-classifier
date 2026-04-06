@@ -161,10 +161,6 @@ def main():
         do_word_segment=not args.no_word_segment,
     )
 
-    # Load model in bfloat16 if on CUDA
-    if classifier.device.type == "cuda":
-        classifier.model = classifier.model.to(dtype=torch.bfloat16)
-
     logger.info("Model loaded. Labels: %s", list(classifier.id2label.values()))
     logger.info("Starting server on %s:%d", args.host, args.port)
 
