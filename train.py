@@ -19,6 +19,8 @@ from transformers import (
     TrainingArguments,
 )
 
+import torch
+
 from src.data_loader import load_data, split_data
 from src.dataset import StyleDataset
 
@@ -69,6 +71,7 @@ def load_model_and_tokenizer(model_name, num_labels, label2id, id2label):
         num_labels=num_labels,
         label2id=label2id,
         id2label=id2label,
+        torch_dtype=torch.bfloat16,
     )
     model.resize_token_embeddings(len(tokenizer))
 
@@ -167,7 +170,7 @@ def main(config_path: str):
         weight_decay=train_cfg.get("weight_decay", 0.01),
         warmup_ratio=train_cfg.get("warmup_ratio", 0.1),
         gradient_accumulation_steps=train_cfg.get("gradient_accumulation_steps", 1),
-        fp16=train_cfg.get("fp16", True),
+        bf16=train_cfg.get("bf16", True),
         logging_steps=train_cfg.get("logging_steps", 50),
         eval_strategy="steps",
         eval_steps=train_cfg.get("eval_steps", 200),
